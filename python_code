@@ -1,0 +1,39 @@
+import arcpy
+from arcpy.sa import *
+
+# Get user input parameters
+Input_Raster = arcpy.GetParameterAsText(0)
+RADIANCE_MULT_BAND = float(arcpy.GetParameterAsText(1))
+RADIANCE_ADD_BAND = float(arcpy.GetParameterAsText(2))
+K1_CONSTANT_BAND = float(arcpy.GetParameterAsText(3))
+K2_CONSTANT_BAND = float(arcpy.GetParameterAsText(4))
+NDVI = arcpy.GetParameterAsText(5)
+NDVI_Minimum_Value = float(arcpy.GetParameterAsText(6))
+NDVI_Maximum_Value = float(arcpy.GetParameterAsText(7))
+Wavelength = float(arcpy.GetParameterAsText(8))
+Output_Raster = arcpy.GetParameterAsText(9)
+
+# Check out Spatial Analyst extension
+arcpy.CheckOutExtension("Spatial")
+
+# Step 1: TOA Radiance
+toa = RADIANCE_MULT_BAND * Raster(Input_Raster) + RADIANCE_ADD_BAND - 0.29
+
+# Step 2: Brightness Temperature (BT)
+bt = (K2_CONSTANT_BAND / Ln((K1_CONSTANT_BAND / toa) + 1)) - 273.15
+
+# Step 3: Emissivity (E)
+ndvi = Raster(NDVI)
+pv = ((ndvi - NDVI_Minimum_Value) / (NDVI_Maximum_Value - NDVI_Minimum_Value)) ** 2
+e = 0.004 * pv + 0.986
+
+# Step 4: Land Surface Temperature (LST)
+lst = bt / (1 + ((Wavelength * bt) / 14388) * Ln(e))
+
+# Save the output raster
+lst.save(Output_Raster)
+
+# Check in Spatial Analyst extension
+arcpy.CheckInExtension("Spatial")
+
+arcpy.AddMessage("LST raster saved to: " + Output_Raster)
